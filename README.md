@@ -32,6 +32,8 @@ With this tool, you can simply ask your AI assistant to "enhance my resume with 
 - **TypeScript/Zod Validation**: Ensures your resume follows the JSON Resume standard
 - **JSON Resume Ecosystem**: Compatible with the [JSON Resume registry](https://registry.jsonresume.org)
 
+Video demo: [https://x.com/ajaxdavis/status/1896953226282594381](https://x.com/ajaxdavis/status/1896953226282594381)
+
 ## Installation
 
 ### Prerequisites
