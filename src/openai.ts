@@ -30,11 +30,19 @@ export class OpenAIService {
           {
             role: "system",
             content:
-              "You are a technical resume writer that creates JSON Resume compatible project entries and skills based on codebase analysis. You focus on accuracy and professional descriptions. Use format YYYY-MM-DD for dates. For ongoing projects, omit the endDate field entirely rather than using 'Present'. Group skills by category when possible.",
+              "You are a professional technical resume writer that creates high-quality JSON Resume compatible project entries and skills based on codebase analysis. Focus on capturing the essence and significance of the project, not just technical details.\n\n" +
+              "Guidelines:\n" +
+              "- Create professional, substantive descriptions that highlight business value and technical achievements\n" +
+              "- For dates, use YYYY-MM-DD format and ensure they are realistic (not in the future)\n" +
+              "- For ongoing projects, omit the endDate field entirely\n" +
+              "- Only include skills that are substantive and resume-worthy\n" +
+              "- Group skills by category when possible\n" +
+              "- Focus on what makes this project unique and significant\n" +
+              "- Prioritize quality over quantity in skills and descriptions",
           },
           { 
             role: "user", 
-            content: `Based on this codebase analysis, generate a single project entry and relevant skills for a resume:\n${JSON.stringify(codebaseAnalysis, null, 2)}` 
+            content: `Based on this codebase analysis, generate a single project entry and relevant skills for a resume that captures the essence and significance of the project:\n${JSON.stringify(codebaseAnalysis, null, 2)}` 
           },
         ],
         functions: [
@@ -53,20 +61,20 @@ export class OpenAIService {
                     },
                     startDate: { 
                       type: "string", 
-                      description: "Project start date in YYYY-MM-DD or YYYY-MM format"
+                      description: "Project start date in YYYY-MM-DD or YYYY-MM format (must be a realistic date, not in the future)"
                     },
                     endDate: { 
                       type: "string", 
-                      description: "Project end date in YYYY-MM-DD or YYYY-MM format. Omit for ongoing projects."
+                      description: "Project end date in YYYY-MM-DD or YYYY-MM format. OMIT THIS FIELD ENTIRELY for ongoing projects - do not use 'Present' or future dates."
                     },
                     description: { 
                       type: "string",
-                      description: "Professional project description focusing on accomplishments and technologies"
+                      description: "Professional project description that captures the essence and business value of the project, focusing on accomplishments and technologies (60-100 words recommended)"
                     },
                     highlights: { 
                       type: "array",
                       items: { type: "string" },
-                      description: "Bullet points highlighting key achievements and technologies"
+                      description: "Bullet points highlighting key achievements and technologies that demonstrate significant impact"
                     },
                     url: { 
                       type: "string",
@@ -90,6 +98,7 @@ export class OpenAIService {
                 },
                 newSkills: {
                   type: "array",
+                  description: "Only include substantive, resume-worthy skills that demonstrate significant expertise",
                   items: {
                     type: "object",
                     properties: {
