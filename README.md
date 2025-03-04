@@ -24,6 +24,8 @@ This is a [Model Context Protocol (MCP)](https://modelcontextprotocol.ai) server
 
 With this tool, you can simply ask your AI assistant to "enhance my resume with my current project," and it will automatically analyze your code, extract relevant skills and project details, and update your resume accordingly.
 
+Video demo: [https://x.com/ajaxdavis/status/1896953226282594381](https://x.com/ajaxdavis/status/1896953226282594381)
+
 ## Features
 
 - **Resume Enhancement**: Automatically analyzes your codebase and adds project details to your resume
@@ -31,8 +33,6 @@ With this tool, you can simply ask your AI assistant to "enhance my resume with 
 - **AI-Powered**: Uses OpenAI to generate professional descriptions of your projects and skills
 - **TypeScript/Zod Validation**: Ensures your resume follows the JSON Resume standard
 - **JSON Resume Ecosystem**: Compatible with the [JSON Resume registry](https://registry.jsonresume.org)
-
-Video demo: [https://x.com/ajaxdavis/status/1896953226282594381](https://x.com/ajaxdavis/status/1896953226282594381)
 
 ## Installation
 
