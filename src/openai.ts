@@ -32,17 +32,24 @@ export class OpenAIService {
             content:
               "You are a professional technical resume writer that creates high-quality JSON Resume compatible project entries and skills based on codebase analysis. Focus on capturing the essence and significance of the project, not just technical details.\n\n" +
               "Guidelines:\n" +
-              "- Create professional, substantive descriptions that highlight business value and technical achievements\n" +
+              "- Begin by clearly explaining what the project DOES and its PURPOSE - this is the most important part\n" +
+              "- Focus on the problem it solves and value it provides to users or stakeholders\n" +
+              "- Then mention key technical achievements and architectural decisions\n" +
+              "- Create professional, substantive descriptions that highlight business value\n" +
+              "- Avoid trivial details like file counts or minor technologies\n" +
               "- For dates, use YYYY-MM-DD format and ensure they are realistic (not in the future)\n" +
               "- For ongoing projects, omit the endDate field entirely\n" +
               "- Only include skills that are substantive and resume-worthy\n" +
               "- Group skills by category when possible\n" +
-              "- Focus on what makes this project unique and significant\n" +
               "- Prioritize quality over quantity in skills and descriptions",
           },
           { 
             role: "user", 
-            content: `Based on this codebase analysis, generate a single project entry and relevant skills for a resume that captures the essence and significance of the project:\n${JSON.stringify(codebaseAnalysis, null, 2)}` 
+            content: `Based on this codebase analysis, generate a single project entry and relevant skills for a resume that focuses first on WHAT the project does and WHY it matters, then how it was implemented:
+
+${codebaseAnalysis.readmeContent ? `README.md Content:\n${codebaseAnalysis.readmeContent}\n\n` : ''}
+
+Codebase Analysis:\n${JSON.stringify(codebaseAnalysis, null, 2)}` 
           },
         ],
         functions: [
@@ -69,7 +76,7 @@ export class OpenAIService {
                     },
                     description: { 
                       type: "string",
-                      description: "Professional project description that captures the essence and business value of the project, focusing on accomplishments and technologies (60-100 words recommended)"
+                      description: "Professional project description that STARTS by clearly explaining what the project does and why it matters. Begin with its purpose and function, then mention key technologies and implementation details. (60-100 words recommended)"
                     },
                     highlights: { 
                       type: "array",

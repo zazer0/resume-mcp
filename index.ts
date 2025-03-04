@@ -16,7 +16,7 @@ import { ResumeEnhancer } from "./src/resume-enhancer.js";
 const server = new Server(
   {
     name: "jsonresume-mcp",
-    version: "0.3.0",
+    version: "1.0.0",
   },
   {
     capabilities: {

@@ -18,6 +18,7 @@ export interface CodebaseAnalysisResult {
   }>;
   technologies: string[];
   summary: string;
+  readmeContent?: string;
 }
 
 export class CodebaseAnalyzer {
@@ -233,15 +234,47 @@ export class CodebaseAnalyzer {
   }
   
   /**
-   * Analyze the codebase
+   * Read README.md content if it exists
+   */
+  async getReadmeContent(): Promise<string | undefined> {
+    try {
+      // Look for README.md (case insensitive)
+      const files = await fs.promises.readdir(this.rootDir);
+      const readmeFile = files.find(file => 
+        file.toLowerCase() === 'readme.md' || file.toLowerCase() === 'readme.markdown'
+      );
+      
+      if (readmeFile) {
+        const readmePath = path.join(this.rootDir, readmeFile);
+        const content = await fs.promises.readFile(readmePath, 'utf-8');
+        return content;
+      }
+      
+      return undefined;
+    } catch (error) {
+      console.error('Error reading README.md:', error);
+      return undefined;
+    }
+  }
+  
+  /**
+   * Analyze the codebase and collect information
    */
   async analyze(): Promise<CodebaseAnalysisResult> {
-    const [repoDetails, languages, recentCommits, technologies, fileCount] = await Promise.all([
-      this.getRepoDetails(),
+    const repoDetails = await this.getRepoDetails();
+    
+    const [
+      languages,
+      recentCommits,
+      technologies,
+      fileCount,
+      readmeContent
+    ] = await Promise.all([
       this.countFilesByLanguage(),
       this.getRecentCommits(),
       this.detectTechnologies(),
-      this.countFiles()
+      this.countFiles(),
+      this.getReadmeContent()
     ]);
     
     // Generate a summary
@@ -259,7 +292,8 @@ export class CodebaseAnalyzer {
       fileCount,
       recentCommits,
       technologies,
-      summary
+      summary,
+      readmeContent
     };
   }
 }
