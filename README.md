@@ -7,6 +7,7 @@
 [![npm version](https://img.shields.io/npm/v/@jsonresume/mcp.svg)](https://www.npmjs.com/package/@jsonresume/mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub Issues](https://img.shields.io/github/issues/jsonresume/mcp.svg)](https://github.com/jsonresume/mcp/issues)
+[![smithery badge](https://smithery.ai/badge/@jsonresume/mcp)](https://smithery.ai/server/@jsonresume/mcp)
 
 **Automate your resume updates with AI by analyzing your coding projects**
 
@@ -42,6 +43,14 @@ Video demo: [https://x.com/ajaxdavis/status/1896953226282594381](https://x.com/a
 - OpenAI API key
 - Node.js 18+
 - An IDE with MCP support (Windsurf or Cursor)
+
+### Installing via Smithery
+
+To install mcp for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@jsonresume/mcp):
+
+```bash
+npx -y @smithery/cli install @jsonresume/mcp --client claude
+```
 
 ### Install via NPM
 
