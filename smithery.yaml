@@ -1,0 +1,37 @@
+# Smithery configuration file: https://smithery.ai/docs/config#smitheryyaml
+
+startCommand:
+  type: stdio
+  configSchema:
+    # JSON Schema defining the configuration options for the MCP.
+    type: object
+    required:
+      - githubToken
+      - githubUsername
+      - openaiApiKey
+    properties:
+      githubToken:
+        type: string
+        description: Your GitHub personal access token with gist permissions.
+      githubUsername:
+        type: string
+        description: Your GitHub username.
+      openaiApiKey:
+        type: string
+        description: Your OpenAI API key.
+  commandFunction:
+    # A JS function that produces the CLI command based on the given config to start the MCP on stdio.
+    |-
+    (config) => ({
+      command: 'node',
+      args: ['dist/index.cjs'],
+      env: {
+        GITHUB_TOKEN: config.githubToken,
+        GITHUB_USERNAME: config.githubUsername,
+        OPENAI_API_KEY: config.openaiApiKey
+      }
+    })
+  exampleConfig:
+    githubToken: your-github-token
+    githubUsername: your-github-username
+    openaiApiKey: your-openai-api-key
