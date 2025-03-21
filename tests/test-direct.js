@@ -22,18 +22,18 @@ async function init() {
     if (!GITHUB_USERNAME) {
       throw new Error("GITHUB_USERNAME environment variable is required");
     }
-    
+
     console.log("Initializing services...");
     const githubService = new GitHubService(GITHUB_TOKEN, GITHUB_USERNAME);
     const openaiService = new OpenAIService(OPENAI_API_KEY);
     const codebaseAnalyzer = new CodebaseAnalyzer(process.cwd());
     const resumeEnhancer = new ResumeEnhancer(openaiService);
-    
+
     console.log("Services initialized successfully");
-    
+
     return { githubService, openaiService, codebaseAnalyzer, resumeEnhancer };
   } catch (error) {
-    console.error("Error initializing services:", error);
+    console.log("Error initializing services:", error);
     process.exit(1);
   }
 }
@@ -41,13 +41,13 @@ async function init() {
 async function enhanceResumeWithProject() {
   try {
     console.log("Starting resume enhancement with current project...");
-    
+
     const { githubService, openaiService, codebaseAnalyzer, resumeEnhancer } = await init();
-    
+
     // Step 1: Fetch the user's resume from GitHub gists
     console.log("Fetching resume from GitHub gists...");
     let resume = await githubService.getResumeFromGists();
-    
+
     if (!resume) {
       // If no resume exists, create a sample one
       console.log("No resume found, creating a sample resume...");
@@ -57,31 +57,31 @@ async function enhanceResumeWithProject() {
     } else {
       console.log("Existing resume found");
     }
-    
+
     // Step 2: Analyze the current codebase
     console.log("Analyzing current project...");
     const codebaseAnalysis = await codebaseAnalyzer.analyze();
-    console.log("Codebase analysis completed:", JSON.stringify({
-      repoName: codebaseAnalysis.repoName,
-      languages: Object.keys(codebaseAnalysis.languages),
-      technologies: codebaseAnalysis.technologies
-    }));
-    
+    console.log(
+      "Codebase analysis completed:",
+      JSON.stringify({
+        repoName: codebaseAnalysis.repoName,
+        languages: Object.keys(codebaseAnalysis.languages),
+        technologies: codebaseAnalysis.technologies,
+      })
+    );
+
     // Step 3: Enhance the resume with the current project
     console.log("Enhancing resume with current project...");
-    const { updatedResume, changes, summary, userMessage, resumeLink } = await resumeEnhancer.enhanceWithCurrentProject(
-      resume,
-      codebaseAnalysis,
-      GITHUB_USERNAME
-    );
-    
+    const { updatedResume, changes, summary, userMessage, resumeLink } =
+      await resumeEnhancer.enhanceWithCurrentProject(resume, codebaseAnalysis, GITHUB_USERNAME);
+
     console.log("Resume enhancement completed successfully");
     console.log("Summary:", summary);
-    
+
     // Step 4: Update the resume on GitHub
     console.log("Updating resume on GitHub...");
     const finalResume = await githubService.updateResume(updatedResume);
-    
+
     return {
       message: "Resume enhanced with current project successfully",
       changes: changes,
@@ -91,17 +91,17 @@ async function enhanceResumeWithProject() {
       projectName: codebaseAnalysis.repoName,
     };
   } catch (error) {
-    console.error("Error enhancing resume with project:", error);
+    console.log("Error enhancing resume with project:", error);
     throw error;
   }
 }
 
 enhanceResumeWithProject()
-  .then(result => {
+  .then((result) => {
     console.log("Result:", JSON.stringify(result, null, 2));
     process.exit(0);
   })
-  .catch(error => {
-    console.error("Fatal error:", error);
+  .catch((error) => {
+    console.log("Fatal error:", error);
     process.exit(1);
   });
