@@ -22,10 +22,10 @@ export class OpenAIService {
   ): Promise<ResumeUpdate> {
     try {
       console.log("Preparing OpenAI API call for resume enhancement...");
-      
+
       // Call OpenAI API with function calling
       const response = await this.client.chat.completions.create({
-        model: "gpt-4",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -43,13 +43,13 @@ export class OpenAIService {
               "- Group skills by category when possible\n" +
               "- Prioritize quality over quantity in skills and descriptions",
           },
-          { 
-            role: "user", 
+          {
+            role: "user",
             content: `Based on this codebase analysis, generate a single project entry and relevant skills for a resume that focuses first on WHAT the project does and WHY it matters, then how it was implemented:
 
 ${codebaseAnalysis.readmeContent ? `README.md Content:\n${codebaseAnalysis.readmeContent}\n\n` : ''}
 
-Codebase Analysis:\n${JSON.stringify(codebaseAnalysis, null, 2)}` 
+Codebase Analysis:\n${JSON.stringify(codebaseAnalysis, null, 2)}`
           },
         ],
         functions: [
@@ -62,41 +62,41 @@ Codebase Analysis:\n${JSON.stringify(codebaseAnalysis, null, 2)}`
                 newProject: {
                   type: "object",
                   properties: {
-                    name: { 
+                    name: {
                       type: "string",
                       description: "Professional project name"
                     },
-                    startDate: { 
-                      type: "string", 
+                    startDate: {
+                      type: "string",
                       description: "Project start date in YYYY-MM-DD or YYYY-MM format (must be a realistic date, not in the future)"
                     },
-                    endDate: { 
-                      type: "string", 
+                    endDate: {
+                      type: "string",
                       description: "Project end date in YYYY-MM-DD or YYYY-MM format. OMIT THIS FIELD ENTIRELY for ongoing projects - do not use 'Present' or future dates."
                     },
-                    description: { 
+                    description: {
                       type: "string",
                       description: "Professional project description that STARTS by clearly explaining what the project does and why it matters. Begin with its purpose and function, then mention key technologies and implementation details. (60-100 words recommended)"
                     },
-                    highlights: { 
+                    highlights: {
                       type: "array",
                       items: { type: "string" },
                       description: "Bullet points highlighting key achievements and technologies that demonstrate significant impact"
                     },
-                    url: { 
+                    url: {
                       type: "string",
-                      description: "Project URL" 
+                      description: "Project URL"
                     },
-                    roles: { 
-                      type: "array", 
+                    roles: {
+                      type: "array",
                       items: { type: "string" },
                       description: "Roles held during the project"
                     },
-                    entity: { 
+                    entity: {
                       type: "string",
                       description: "Organization name associated with the project"
                     },
-                    type: { 
+                    type: {
                       type: "string",
                       description: "Type of project (application, library, etc.)"
                     }
@@ -109,15 +109,15 @@ Codebase Analysis:\n${JSON.stringify(codebaseAnalysis, null, 2)}`
                   items: {
                     type: "object",
                     properties: {
-                      name: { 
+                      name: {
                         type: "string",
                         description: "Professional skill name"
                       },
-                      level: { 
+                      level: {
                         type: "string",
                         description: "Skill proficiency level"
                       },
-                      keywords: { 
+                      keywords: {
                         type: "array",
                         items: { type: "string" },
                         description: "Related keywords for this skill"
@@ -144,7 +144,7 @@ Codebase Analysis:\n${JSON.stringify(codebaseAnalysis, null, 2)}`
       });
 
       console.log("Received response from OpenAI API");
-      
+
       const functionCall = response.choices[0]?.message?.function_call;
       if (!functionCall?.arguments) {
         console.log("Error: No function call arguments in OpenAI response");
@@ -159,10 +159,10 @@ Codebase Analysis:\n${JSON.stringify(codebaseAnalysis, null, 2)}`
         console.log("Successfully validated schema");
         return validated;
       } catch (parseError) {
-        console.log("Error parsing OpenAI response:", 
-          parseError instanceof SyntaxError ? "JSON parse error" : 
-          parseError instanceof z.ZodError ? "Schema validation error" : 
-          "Unknown error"
+        console.log("Error parsing OpenAI response:",
+          parseError instanceof SyntaxError ? "JSON parse error" :
+            parseError instanceof z.ZodError ? "Schema validation error" :
+              "Unknown error"
         );
         console.log("Raw function call arguments:", functionCall.arguments.substring(0, 200) + "...");
         throw parseError;
@@ -187,39 +187,39 @@ Codebase Analysis:\n${JSON.stringify(codebaseAnalysis, null, 2)}`
    */
   async enhanceResume(resume: Resume, update: ResumeUpdate): Promise<Resume> {
     const result = JSON.parse(JSON.stringify(resume)) as Resume;
-    
+
     // Store the _gistId separately so we can add it back later
     const gistId = (result as any)._gistId;
-    
+
     // Add the new project if it doesn't already exist
     const existingProjects = new Set(
       (result.projects || []).map(project => project.name.toLowerCase())
     );
-    
+
     if (update.newProject && !existingProjects.has(update.newProject.name.toLowerCase())) {
       result.projects = [...(result.projects || []), update.newProject];
     }
-    
+
     // Add new skills if they don't already exist
     const existingSkills = new Set(
-      (result.skills || []).map(skill => 
+      (result.skills || []).map(skill =>
         typeof skill === 'string' ? skill.toLowerCase() : skill.name.toLowerCase()
       )
     );
-    
-    const newSkills = update.newSkills.filter(skill => 
+
+    const newSkills = update.newSkills.filter(skill =>
       !existingSkills.has(skill.name.toLowerCase())
     );
-    
+
     if (newSkills.length > 0) {
       result.skills = [...(result.skills || []), ...newSkills];
     }
-    
+
     // Add back the _gistId if it existed
     if (gistId) {
       (result as any)._gistId = gistId;
     }
-    
+
     return result;
   }
 
@@ -229,10 +229,10 @@ Codebase Analysis:\n${JSON.stringify(codebaseAnalysis, null, 2)}`
   async generateUpdateSummary(changes: string[]): Promise<string> {
     try {
       console.log("Generating update summary...");
-      
+
       // Call OpenAI API to generate a summary
       const response = await this.client.chat.completions.create({
-        model: "gpt-3.5-turbo",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
@@ -245,7 +245,7 @@ Codebase Analysis:\n${JSON.stringify(codebaseAnalysis, null, 2)}`
         ],
         max_tokens: 150
       });
-      
+
       const summary = response.choices[0]?.message?.content || "Resume updated with new project details and skills.";
       return summary;
     } catch (error) {
