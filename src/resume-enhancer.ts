@@ -24,16 +24,56 @@ export interface JobEnhancementResult extends EnhancementResult {
 
 export class ResumeEnhancer {
   private openAIService: OpenAIService;
-  
+
   constructor(openAIService: OpenAIService) {
     this.openAIService = openAIService;
   }
-  
+
   /**
-   * Enhance a resume with details about the current project
+   * Orchestrates the resume enhancement process based on job details.
+   * Parses resume content, calls OpenAI for adjustment, and returns the stringified result.
+   * Implements step 4 of the plan.
+   * @param resumeContent The current resume content as a JSON string.
+   * @param jobDetails The job details as a parsed JSON object.
+   * @returns The enhanced resume content as a formatted JSON string.
    */
+  async enhance(resumeContent: string, jobDetails: object): Promise<string> {
+    console.log("Starting enhancement orchestration...");
+    let resumeJson: object;
+
+    // 1. Parse the input resumeContent string
+    try {
+      resumeJson = JSON.parse(resumeContent);
+      console.log("Successfully parsed current resume content.");
+    } catch (parseError) {
+      console.error("Error parsing current resume content:", parseError);
+      throw new Error(`Failed to parse the provided resume content: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+    }
+
+    // 2. Call OpenAI service to get the adjusted resume object
+    let adjustedResumeObject: object;
+    try {
+      console.log("Calling OpenAI service to adjust resume...");
+      adjustedResumeObject = await this.openAIService.adjustResumeForJob(resumeJson, jobDetails);
+      console.log("Successfully received adjusted resume object from OpenAI.");
+    } catch (openaiError) {
+      console.error("Error calling OpenAI service for resume adjustment:", openaiError);
+      throw openaiError; // Re-throw the error from the OpenAI service
+    }
+
+    // 3. Convert the adjusted object back to a formatted JSON string
+    try {
+      const enhancedResumeString = JSON.stringify(adjustedResumeObject, null, 2);
+      console.log("Successfully stringified the adjusted resume object.");
+      return enhancedResumeString;
+    } catch (stringifyError) {
+       console.error("Error stringifying the adjusted resume object:", stringifyError);
+       throw new Error(`Failed to format the adjusted resume into JSON string: ${stringifyError instanceof Error ? stringifyError.message : String(stringifyError)}`);
+    }
+  }
+
   /**
-   * Enhance a resume to better match a job description
+   * Enhance a resume to better match a job description (Older implementation, might be deprecated by `enhance`)
    */
   async enhanceForJob(
     resume: Resume,
@@ -41,12 +81,12 @@ export class ResumeEnhancer {
   ): Promise<JobEnhancementResult> {
     try {
       console.log('Starting resume enhancement for job match...');
-      
+
       // Get resume updates from OpenAI
       console.log('Calling OpenAI to generate job-based resume enhancement...');
       const update = await this.openAIService.generateJobBasedEnhancement(resume, jobDescription);
       console.log('Received resume updates from OpenAI');
-      
+
       // Apply the updates to the resume
       console.log('Enhancing resume with job-specific updates...');
       const updatedResume = await this.openAIService.enhanceResume(resume, {
@@ -54,12 +94,12 @@ export class ResumeEnhancer {
         changes: update.changes
       } as JobBasedResumeUpdate);
       console.log('Resume enhanced successfully');
-      
+
       // Generate a summary of the changes
       console.log('Generating update summary...');
       const summary = await this.openAIService.generateUpdateSummary(update.changes);
       console.log('Summary generated');
-      
+
       return {
         updatedResume,
         changes: {
@@ -74,7 +114,7 @@ export class ResumeEnhancer {
         updatedSummary: update.updatedSummary
       };
     } catch (error) {
-      console.log('Error enhancing resume for job:', error);
+      console.error('Error enhancing resume for job:', error);
       throw error;
     }
   }
@@ -90,25 +130,25 @@ export class ResumeEnhancer {
         languages: Object.keys(codebaseAnalysis.languages),
         technologies: codebaseAnalysis.technologies
       }));
-      
+
       // Get resume updates from OpenAI
       console.log('Calling OpenAI to generate resume enhancement...');
       const update = await this.openAIService.generateResumeEnhancement(codebaseAnalysis);
       console.log('Received resume updates from OpenAI');
-      
+
       // Apply the updates to the resume
       console.log('Enhancing resume with new data...');
       const updatedResume = await this.openAIService.enhanceResume(resume, update);
       console.log('Resume enhanced successfully');
-      
+
       // Generate a summary of the changes
       console.log('Generating update summary...');
       const summary = await this.openAIService.generateUpdateSummary(update.changes);
       console.log('Summary generated');
-      
+
       // Create user message
       const userMessage = this.createUserMessage(githubUsername, update.changes);
-      
+
       return {
         updatedResume,
         changes: {
@@ -122,11 +162,11 @@ export class ResumeEnhancer {
         resumeLink: `https://registry.jsonresume.org/${githubUsername}`
       };
     } catch (error) {
-      console.log('Error enhancing resume with current project:', error);
+      console.error('Error enhancing resume with current project:', error);
       throw error;
     }
   }
-  
+
   /**
    * Create a user-friendly message with details about the updates and a link to the resume
    */

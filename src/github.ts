@@ -34,104 +34,91 @@ export class GitHubService {
   }
 
   /**
-   * Get resume.json from user's gists
+   * Get the content of resume.json from the most recent user gist containing it.
+   * Returns the file content as a string, or null if not found.
    */
-  async getResumeFromGists(): Promise<Resume | null> {
+  async getResumeGist(): Promise<string | null> {
     try {
-      // If we've already found the gist ID in this session, use it
-      if (this.cachedGistId) {
-        console.log(`Using cached gist ID: ${this.cachedGistId}`);
-        try {
-          const { data: gist } = await this.octokit.rest.gists.get({
-            gist_id: this.cachedGistId,
+      let gistIdToFetch: string | null = this.cachedGistId;
+
+      // If not cached, find the most recent gist containing resume.json
+      if (!gistIdToFetch) {
+        console.log(`Listing gists for user: ${this.username} to find resume.json`);
+        const { data: gists } = await this.octokit.rest.gists.list({
+          username: this.username,
+          per_page: 100, // Check up to 100 gists
+        });
+        console.log(`Found ${gists.length} gists.`);
+
+        const resumeGists = gists
+          .filter(gist => {
+            const files = gist.files || {};
+            return Object.values(files).some(
+              (file) => file?.filename === "resume.json"
+            );
+          })
+          .sort((a, b) => {
+            // Sort by updated_at in descending order (newest first)
+            return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
           });
 
-          const files = gist.files || {};
-          const resumeFile = Object.values(files).find(
-            (file) => file?.filename === "resume.json"
-          );
-
-          if (resumeFile && resumeFile.raw_url) {
-            const response = await fetch(resumeFile.raw_url);
-            const resumeData = await response.json();
-            console.log("Successfully fetched resume from cached gist ID");
-            return {
-              ...resumeData,
-              _gistId: this.cachedGistId
-            };
-          }
-        } catch (error) {
-          console.log("Error fetching from cached gist ID, will try listing all gists:", error);
-          this.cachedGistId = null;
+        if (!resumeGists.length) {
+          console.log("No gist containing resume.json found.");
+          return null;
         }
+
+        const mostRecentGist = resumeGists[0];
+        if (!mostRecentGist || !mostRecentGist.id) {
+          console.error("Found resume gist but it has an invalid ID.");
+          return null;
+        }
+
+        gistIdToFetch = mostRecentGist.id;
+        this.cachedGistId = gistIdToFetch; // Cache the found ID
+        console.log(`Found most recent resume.json in gist ID: ${gistIdToFetch} (updated: ${mostRecentGist.updated_at}). Caching ID.`);
+      } else {
+        console.log(`Using cached gist ID: ${gistIdToFetch}`);
       }
 
-      // List all gists for the user
-      console.log(`Listing gists for user: ${this.username}`);
-      const { data: gists } = await this.octokit.rest.gists.list({
-        username: this.username,
-        per_page: 100,
-      });
-
-      console.log(`Found ${gists.length} gists, searching for resume.json`);
-
-      // Find all gists containing resume.json and sort by updated_at
-      const resumeGists = gists
-        .filter(gist => {
-          const files = gist.files || {};
-          return Object.values(files).some(
-            (file) => file?.filename === "resume.json"
-          );
-        })
-        .sort((a, b) => {
-          // Sort by updated_at in descending order (newest first)
-          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+      // Fetch the specific gist using the determined ID
+      try {
+        console.log(`Fetching content of gist ID: ${gistIdToFetch}`);
+        const { data: gist } = await this.octokit.rest.gists.get({
+          gist_id: gistIdToFetch,
         });
 
-      if (!resumeGists.length) {
-        console.log("No resume.json found in any gists");
-        return null;
+        const files = gist.files || {};
+        const resumeFile = files['resume.json']; // Direct access by filename
+
+        if (resumeFile && typeof resumeFile.content === 'string') {
+          console.log("Successfully fetched resume.json content.");
+          return resumeFile.content;
+        } else {
+          console.error(`Gist ${gistIdToFetch} found, but resume.json file or its content is missing.`);
+          // If the cached ID failed, clear it and maybe retry listing? For now, just return null.
+          if (this.cachedGistId === gistIdToFetch) {
+            this.cachedGistId = null;
+            console.log("Cleared cached gist ID due to fetch failure.");
+          }
+          return null;
+        }
+      } catch (error) {
+        console.error(`Error fetching gist content for ID ${gistIdToFetch}:`, error);
+        // If the cached ID caused the error, clear it
+        if (this.cachedGistId === gistIdToFetch) {
+          this.cachedGistId = null;
+          console.log("Cleared cached gist ID due to fetch error.");
+        }
+        throw error; // Re-throw after logging and potentially clearing cache
       }
 
-      const mostRecentGist = resumeGists[0];
-      if (!mostRecentGist || !mostRecentGist.id) {
-        console.log("Invalid gist found: missing or invalid ID");
-        return null;
-      }
-
-      // At this point TypeScript knows id exists and is a string
-      const gistId: string = mostRecentGist.id;
-      if (!gistId) {
-        console.log("Invalid gist found: missing or invalid ID");
-        return null;
-      }
-      console.log(`Found ${resumeGists.length} resume.json gists. Using most recent: ${gistId} (updated: ${mostRecentGist.updated_at})`);
-
-      // Cache the gist ID for future use
-      this.cachedGistId = gistId;
-
-      const files = mostRecentGist.files || {};
-      const resumeFile = Object.values(files).find(
-        (file) => file?.filename === "resume.json"
-      );
-
-      if (resumeFile && resumeFile.raw_url) {
-        // Fetch the content of resume.json
-        const response = await fetch(resumeFile.raw_url);
-        const resumeData = await response.json();
-        return {
-          ...resumeData,
-          _gistId: gistId
-        };
-      }
-
-      console.log("No resume.json found in any gists");
-      return null;
     } catch (error) {
-      console.log("Error fetching resume from gists:", error);
-      throw error;
+      console.error("Error in getResumeGist:", error);
+      // Don't throw here, return null as per Promise<string | null>
+      return null;
     }
   }
+
 
   /**
    * Create a sample resume.json gist if none exists
@@ -167,8 +154,13 @@ export class GitHubService {
           },
         },
         description: "My JSON Resume",
-        public: true,
+        public: true, // Note: Plan asks for *updated* resume to be secret, sample can be public
       });
+
+      // Ensure gist.id is valid before using it
+      if (!gist.id) {
+        throw new Error("Failed to create gist: No ID returned.");
+      }
 
       // Cache the gist ID for future use
       this.cachedGistId = gist.id;
@@ -185,47 +177,41 @@ export class GitHubService {
   }
 
   /**
-   * Create a new gist with a timestamped version of the resume
+   * Create a new secret gist with the provided content.
+   * Implements step 2 of the plan.
+   * @param content The JSON string content for the new gist file.
+   * @returns The URL of the newly created gist.
    */
-  async createUpdatedResumeGist(resume: Resume): Promise<Resume> {
+  async createResumeGist(content: string): Promise<string> {
     try {
       // Generate timestamped filename
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '');
-      const filename = `updated_resume_${timestamp}.json`;
+      const filename = `updated_resume_${Date.now()}.json`;
 
-      // Create clean copy without _gistId
-      const { _gistId, ...resumeData } = { ...resume, _gistId: undefined };
-
-      // Update lastModified date
-      if (resumeData.meta) {
-        resumeData.meta.lastModified = new Date().toISOString();
-      } else {
-        resumeData.meta = {
-          lastModified: new Date().toISOString()
-        };
-      }
-
-      console.log(`Creating new resume gist: ${filename}`);
+      console.log(`Creating new secret resume gist: ${filename}`);
       // Create new gist with timestamped filename
       const { data: newGist } = await this.octokit.rest.gists.create({
         files: {
           [filename]: {
-            content: JSON.stringify(resumeData, null, 2),
+            content: content, // Use the provided content string directly
           },
         },
-        description: `Updated resume - ${timestamp}`,
-        public: true,
+        description: 'Updated Resume generated by MCP',
+        public: false, // Make the gist secret as per plan
       });
 
-      return {
-        ...resumeData,
-        _gistId: newGist.id
-      };
+      if (!newGist.html_url) {
+         throw new Error("Failed to create gist: No html_url returned.");
+      }
+
+      console.log(`Created new secret gist: ${newGist.html_url}`);
+      return newGist.html_url; // Return the URL as per plan
+
     } catch (error) {
-      console.log("Error creating updated resume gist:", error);
-      throw error;
+      console.error("Error creating updated resume gist:", error);
+      throw error; // Re-throw the error to be handled by the caller
     }
   }
+
 
   /**
    * Get user's repositories and their contributions

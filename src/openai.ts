@@ -1,10 +1,10 @@
 import OpenAI from "openai";
 import { Resume, JobDescription, Skill as ResumeSkill } from "./types.js";
 import { CodebaseAnalysisResult } from "./codebase.js";
-import { 
-  resumeUpdateSchema, 
-  jobResumeUpdateSchema, 
-  ResumeUpdate, 
+import {
+  resumeUpdateSchema,
+  jobResumeUpdateSchema,
+  ResumeUpdate,
   JobResumeUpdate,
   JobBasedResumeUpdate,
   Skill
@@ -22,8 +22,88 @@ export class OpenAIService {
   }
 
   /**
-   * Generate a new project and skills based on codebase analysis
+   * Adjusts a resume JSON object based on a job description JSON object.
+   * Returns the modified resume as a JSON object.
+   * Implements step 3 of the plan.
    */
+  async adjustResumeForJob(resumeJson: object, jobDetails: object): Promise<object> {
+    console.log("Preparing OpenAI call to adjust resume for job...");
+    try {
+      const resumeString = JSON.stringify(resumeJson, null, 2);
+      const jobDetailsString = JSON.stringify(jobDetails, null, 2);
+
+      const prompt = `Act as an expert career advisor and resume writer. Your task is to subtly adjust the provided JSON resume to better align with the requirements and keywords found in the provided job description JSON.
+
+Review both the resume and the job description carefully. Identify skills, experiences, and qualifications in the resume that are most relevant to the job.
+
+Modify the resume JSON object, focusing on:
+1.  Subtly rephrasing parts of the summary, experience descriptions, or project highlights to use language closer to the job description, where appropriate.
+2.  Ensuring the most relevant skills and experiences are prominent. Do NOT add skills or experiences the candidate doesn't possess.
+3.  Maintaining the original structure and data types of the JSON resume.
+4.  Making only necessary and subtle adjustments. Avoid drastic changes or fabrications.
+
+Return ONLY the complete, modified JSON object for the resume. Do not include any introductory text, explanations, or markdown formatting. The output must be a single, valid JSON object representing the adjusted resume.
+
+Job Description JSON:
+\`\`\`json
+${jobDetailsString}
+\`\`\`
+
+Current Resume JSON:
+\`\`\`json
+${resumeString}
+\`\`\`
+
+Modified Resume JSON (Return only this):`;
+
+      console.log("Sending request to OpenAI API (using JSON mode)...");
+      const response = await this.client.chat.completions.create({
+        model: "gpt-4o", // Using a capable model, gpt-4-turbo is also a good option
+        response_format: { type: "json_object" }, // Ensure JSON output
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert career advisor specializing in tailoring JSON resumes to specific job descriptions. You output only valid JSON objects."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        // temperature: 0.5, // Adjust temperature for creativity vs consistency if needed
+      });
+
+      const messageContent = response.choices[0]?.message?.content;
+
+      if (!messageContent) {
+        console.error("No content received from OpenAI API.");
+        throw new Error("OpenAI API returned an empty response.");
+      }
+
+      console.log("Received response from OpenAI. Parsing JSON...");
+      try {
+        const adjustedResumeObject = JSON.parse(messageContent);
+        console.log("Successfully parsed adjusted resume JSON.");
+        // Basic validation: Check if it looks like a resume object (e.g., has a 'basics' property)
+        if (typeof adjustedResumeObject !== 'object' || adjustedResumeObject === null || !adjustedResumeObject.hasOwnProperty('basics')) {
+           console.warn("Parsed JSON doesn't look like a standard resume object.");
+           // Depending on strictness, could throw an error here.
+        }
+        return adjustedResumeObject;
+      } catch (parseError) {
+        console.error("Failed to parse JSON response from OpenAI:", parseError);
+        console.error("Raw OpenAI response content:", messageContent.substring(0, 500) + "..."); // Log snippet of raw response
+        throw new Error(`Failed to parse the adjusted resume JSON received from OpenAI: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+      }
+
+    } catch (error) {
+      console.error("Error during OpenAI resume adjustment:", error);
+      // Re-throw the error to be handled by the caller (e.g., the MCP tool handler)
+      throw error;
+    }
+  }
+
+
   /**
    * Generate resume updates based on a job description
    */
@@ -124,11 +204,11 @@ ${JSON.stringify(resume, null, 2)}`
         console.log("Successfully validated job-based resume update schema");
         return validated;
       } catch (parseError) {
-        console.log("Error parsing OpenAI response for job-based enhancement:", parseError);
+        console.error("Error parsing OpenAI response for job-based enhancement:", parseError);
         throw parseError;
       }
     } catch (error) {
-      console.log("Error generating job-based resume enhancement:", error);
+      console.error("Error generating job-based resume enhancement:", error);
       throw error;
     }
   }
@@ -263,7 +343,7 @@ Codebase Analysis:\n${JSON.stringify(codebaseAnalysis, null, 2)}`
 
       const functionCall = response.choices[0]?.message?.function_call;
       if (!functionCall?.arguments) {
-        console.log("Error: No function call arguments in OpenAI response");
+        console.error("Error: No function call arguments in OpenAI response");
         throw new Error("No function call arguments received from OpenAI");
       }
 
@@ -275,24 +355,24 @@ Codebase Analysis:\n${JSON.stringify(codebaseAnalysis, null, 2)}`
         console.log("Successfully validated schema");
         return validated;
       } catch (parseError) {
-        console.log("Error parsing OpenAI response:",
+        console.error("Error parsing OpenAI response:",
           parseError instanceof SyntaxError ? "JSON parse error" :
             parseError instanceof z.ZodError ? "Schema validation error" :
               "Unknown error"
         );
-        console.log("Raw function call arguments:", functionCall.arguments.substring(0, 200) + "...");
+        console.error("Raw function call arguments:", functionCall.arguments.substring(0, 200) + "...");
         throw parseError;
       }
     } catch (error) {
       if (error instanceof z.ZodError) {
-        console.log("Schema validation error:", error.errors);
+        console.error("Schema validation error:", error.errors);
       } else if (error instanceof SyntaxError) {
-        console.log("JSON parsing error:", error.message);
+        console.error("JSON parsing error:", error.message);
       } else if (error instanceof Error) {
-        console.log("OpenAI API error:", error.message);
-        console.log("Error details:", error);
+        console.error("OpenAI API error:", error.message);
+        console.error("Error details:", error);
       } else {
-        console.log("Unknown error:", error);
+        console.error("Unknown error:", error);
       }
       throw error;
     }
@@ -330,7 +410,7 @@ Codebase Analysis:\n${JSON.stringify(codebaseAnalysis, null, 2)}`
       })
     );
 
-    const newSkills = update.newSkills.filter(skill => 
+    const newSkills = update.newSkills.filter(skill =>
       skill.name && !existingSkills.has(skill.name.toLowerCase())
     );
 
@@ -372,7 +452,7 @@ Codebase Analysis:\n${JSON.stringify(codebaseAnalysis, null, 2)}`
       const summary = response.choices[0]?.message?.content || "Resume updated with new project details and skills.";
       return summary;
     } catch (error) {
-      console.log("Error generating update summary:", error);
+      console.error("Error generating update summary:", error);
       return "Resume updated with new project details and skills.";
     }
   }
