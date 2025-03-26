@@ -1,4 +1,5 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { readFile } from 'fs/promises';
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
@@ -101,10 +102,26 @@ const ENHANCE_RESUME_WITH_PROJECT_TOOL: Tool = {
   },
 };
 
+const ENHANCE_RESUME_WITH_JOB_TOOL: Tool = {
+  name: "github_enhance_resume_with_job",
+  description: "This is a tool from the github MCP server.\nEnhances a resume to better match a job description",
+  inputSchema: {
+    type: "object",
+    properties: {
+      jobDescriptionPath: {
+        type: "string",
+        description: "Path to the job description file in JSON format",
+      },
+    },
+    required: ["jobDescriptionPath"],
+  },
+};
+
 const tools = [
   ANALYZE_CODEBASE_TOOL,
   CHECK_RESUME_TOOL,
   ENHANCE_RESUME_WITH_PROJECT_TOOL,
+  ENHANCE_RESUME_WITH_JOB_TOOL,
 ];
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -170,6 +187,50 @@ async function checkResume() {
   }
 }
 
+async function enhanceResumeWithJob(jobDescriptionPath: string) {
+  try {
+    console.log("Starting resume enhancement with job description...");
+    
+    // Step 1: Fetch the user's resume from GitHub gists
+    console.log("Fetching resume from GitHub gists...");
+    let resume = await githubService.getResumeFromGists();
+    
+    if (!resume) {
+      // If no resume exists, create a sample one
+      console.log("No resume found, creating a sample resume...");
+      const userProfile = await githubService.getUserProfile();
+      resume = await githubService.createSampleResume();
+      console.log("Sample resume created successfully");
+    }
+
+    // Step 2: Read and parse job description
+    console.log("Reading job description from:", jobDescriptionPath);
+    const jobDescContent = await readFile(jobDescriptionPath, 'utf-8');
+    const jobDescription = JSON.parse(jobDescContent);
+
+    // Step 3: Enhance the resume with job description
+    console.log("Enhancing resume with job description...");
+    const { updatedResume, changes, summary, userMessage, resumeLink } = 
+      await resumeEnhancer.enhanceForJob(resume, jobDescription);
+
+    // Step 4: Update the resume on GitHub
+    console.log("Updating resume on GitHub...");
+    const finalResume = await githubService.updateResume(updatedResume);
+
+    return {
+      message: "Resume enhanced with job description successfully",
+      changes,
+      summary,
+      userMessage,
+      resumeUrl: resumeLink || `https://registry.jsonresume.org/${GITHUB_USERNAME}`,
+      warning: "Note: Automatic resume updates might have modified your resume. Check GitHub Gist revisions to revert if needed."
+    };
+  } catch (error) {
+    console.log("Error enhancing resume with job description:", error);
+    throw error;
+  }
+}
+
 async function enhanceResumeWithProject(directory?: string) {
   try {
     console.log("Starting resume enhancement with current project...");
@@ -212,7 +273,7 @@ async function enhanceResumeWithProject(directory?: string) {
       userMessage,
       resumeUrl: resumeLink || `https://registry.jsonresume.org/${GITHUB_USERNAME}`,
       projectName: codebaseAnalysis.repoName,
-      warning: "⚠️ Note: Automatic resume updates might have modified your resume in ways that don't match your preferences. You can revert to a previous version through your GitHub Gist revision history if needed."
+      warning: "?? Note: Automatic resume updates might have modified your resume in ways that don't match your preferences. You can revert to a previous version through your GitHub Gist revision history if needed."
     };
   } catch (error) {
     console.log("Error enhancing resume with project:", error);
@@ -236,6 +297,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     console.log("Enhance resume with project tool", request.params.arguments);
     const input = request.params.arguments as { directory?: string };
     return await enhanceResumeWithProject(input.directory);
+  } else if (request.params.name === "github_enhance_resume_with_job") {
+    console.log("Enhance resume with job tool", request.params.arguments);
+    const input = request.params.arguments as { jobDescriptionPath: string };
+    return await enhanceResumeWithJob(input.jobDescriptionPath);
   }
 
   throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);

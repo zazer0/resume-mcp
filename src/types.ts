@@ -1,6 +1,7 @@
 // JSON Resume schema types based on https://jsonresume.org/schema/
 
 export interface Resume {
+  _gistId?: string;
   basics?: Basics;
   work?: Work[];
   volunteer?: Volunteer[];
