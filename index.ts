@@ -1,5 +1,4 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { readFile } from 'fs/promises';
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
@@ -14,7 +13,6 @@ import { Resume } from "./src/types.js";
 import { CodebaseAnalyzer } from "./src/codebase.js";
 import { ResumeEnhancer } from "./src/resume-enhancer.js";
 import fs from 'fs'; // Import fs for sync file reading if needed, or use async readFile
-import path from 'path'; // Import path for resolving paths if needed
 
 const server = new Server(
   {
@@ -23,14 +21,49 @@ const server = new Server(
   },
   {
     capabilities: {
-      resources: {},
-      tools: {},
-      logging: {},
+      resources: {
+        timeout: 300000,
+      },
+      tools: {
+        timeout: 300000,
+      },
+      logging: {
+        timeout: 300000,
+      },
+    timeout: 300000,
     },
-  }
+
+  },
+
+
 );
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // Environment variables
+
+
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const GITHUB_USERNAME = process.env.GITHUB_USERNAME;
@@ -79,6 +112,7 @@ const ANALYZE_CODEBASE_TOOL: Tool = {
     required: [],
   },
 };
+
 
 const CHECK_RESUME_TOOL: Tool = {
   name: "github_check_resume",
@@ -310,13 +344,13 @@ async function enhanceResumeWithProject(directory?: string) {
       resume = await githubService.createSampleResume();
       console.log("Sample resume created successfully");
     } else {
-       try {
-         resume = JSON.parse(resumeContent); // Parse the string content
-         console.log("Existing resume found and parsed");
-       } catch (parseError) {
-         console.error("Error parsing existing resume.json content:", parseError);
-         throw new McpError(ErrorCode.InternalError, `Found resume.json, but failed to parse its content: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
-       }
+      try {
+        resume = JSON.parse(resumeContent); // Parse the string content
+        console.log("Existing resume found and parsed");
+      } catch (parseError) {
+        console.error("Error parsing existing resume.json content:", parseError);
+        throw new McpError(ErrorCode.InternalError, `Found resume.json, but failed to parse its content: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+      }
     }
 
     // Step 2: Analyze the current codebase
@@ -356,7 +390,7 @@ async function enhanceResumeWithProject(directory?: string) {
     };
   } catch (error) {
     console.error("Error enhancing resume with project:", error);
-     if (error instanceof McpError) throw error;
+    if (error instanceof McpError) throw error;
     throw new McpError(ErrorCode.InternalError, `Error enhancing resume with project: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
@@ -379,7 +413,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     // Validate input using Zod or similar would be good practice here
     const input = request.params.arguments as { job_json_path: string };
     if (typeof input?.job_json_path !== 'string') {
-       throw new McpError(ErrorCode.InvalidParams, `Missing or invalid 'job_json_path' argument.`);
+      throw new McpError(ErrorCode.InvalidParams, `Missing or invalid 'job_json_path' argument.`);
     }
     return await enhanceResume(input.job_json_path); // Call the refactored function
   }

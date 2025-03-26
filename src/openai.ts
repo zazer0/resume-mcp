@@ -57,6 +57,7 @@ ${resumeString}
 Modified Resume JSON (Return only this):`;
 
       console.log("Sending request to OpenAI API (using JSON mode)...");
+      const startTime = Date.now(); // Start time before API call
       const response = await this.client.chat.completions.create({
         model: "gpt-4o", // Using a capable model, gpt-4-turbo is also a good option
         response_format: { type: "json_object" }, // Ensure JSON output
@@ -72,6 +73,8 @@ Modified Resume JSON (Return only this):`;
         ],
         // temperature: 0.5, // Adjust temperature for creativity vs consistency if needed
       });
+      const endTime = Date.now(); // End time after API call
+      console.log(`OpenAI API call duration: ${endTime - startTime}ms`); // Log duration
 
       const messageContent = response.choices[0]?.message?.content;
 
@@ -86,8 +89,8 @@ Modified Resume JSON (Return only this):`;
         console.log("Successfully parsed adjusted resume JSON.");
         // Basic validation: Check if it looks like a resume object (e.g., has a 'basics' property)
         if (typeof adjustedResumeObject !== 'object' || adjustedResumeObject === null || !adjustedResumeObject.hasOwnProperty('basics')) {
-           console.warn("Parsed JSON doesn't look like a standard resume object.");
-           // Depending on strictness, could throw an error here.
+          console.warn("Parsed JSON doesn't look like a standard resume object.");
+          // Depending on strictness, could throw an error here.
         }
         return adjustedResumeObject;
       } catch (parseError) {
@@ -114,6 +117,7 @@ Modified Resume JSON (Return only this):`;
     try {
       console.log("Preparing OpenAI API call for job-based resume enhancement...");
 
+      const startTime = Date.now(); // Start time before API call
       const response = await this.client.chat.completions.create({
         model: "gpt-4o",
         messages: [
@@ -192,6 +196,8 @@ ${JSON.stringify(resume, null, 2)}`
         ],
         function_call: { name: "enhance_resume_for_job" }
       });
+      const endTime = Date.now(); // End time after API call
+      console.log(`OpenAI API call duration: ${endTime - startTime}ms`); // Log duration
 
       const functionCall = response.choices[0]?.message?.function_call;
       if (!functionCall?.arguments) {
@@ -220,6 +226,7 @@ ${JSON.stringify(resume, null, 2)}`
       console.log("Preparing OpenAI API call for resume enhancement...");
 
       // Call OpenAI API with function calling
+      const startTime = Date.now(); // Start time before API call
       const response = await this.client.chat.completions.create({
         model: "gpt-4o",
         messages: [
@@ -338,6 +345,8 @@ Codebase Analysis:\n${JSON.stringify(codebaseAnalysis, null, 2)}`
         ],
         function_call: { name: "create_resume_update" }
       });
+      const endTime = Date.now(); // End time after API call
+      console.log(`OpenAI API call duration: ${endTime - startTime}ms`); // Log duration
 
       console.log("Received response from OpenAI API");
 
