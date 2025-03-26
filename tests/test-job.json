@@ -1,0 +1,43 @@
+{
+  "title": "Senior Full Stack Developer",
+  "company": "TechCorp",
+  "type": "Full-time",
+  "date": "2024-03",
+  "description": "We are seeking a skilled Senior Full Stack Developer to join our growing team. The ideal candidate will have strong experience in modern web technologies and a passion for building scalable applications.",
+  "location": {
+    "city": "Sydney",
+    "countryCode": "AU",
+    "region": "NSW"
+  },
+  "remote": "Hybrid",
+  "experience": "Senior",
+  "responsibilities": [
+    "Design and implement scalable web applications",
+    "Lead technical architecture decisions",
+    "Mentor junior developers",
+    "Collaborate with cross-functional teams"
+  ],
+  "qualifications": [
+    "5+ years of professional software development experience",
+    "Strong experience with modern JavaScript frameworks",
+    "Experience with cloud technologies",
+    "Bachelor's degree in Computer Science or related field"
+  ],
+  "skills": [
+    {
+      "name": "Frontend Development",
+      "level": "Expert",
+      "keywords": ["React", "TypeScript", "HTML5", "CSS3"]
+    },
+    {
+      "name": "Backend Development",
+      "level": "Expert",
+      "keywords": ["Node.js", "Express", "REST APIs", "GraphQL"]
+    },
+    {
+      "name": "Cloud Technologies",
+      "level": "Intermediate",
+      "keywords": ["AWS", "Docker", "Kubernetes"]
+    }
+  ]
+}

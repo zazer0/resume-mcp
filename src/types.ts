@@ -137,6 +137,28 @@ export interface Meta {
   lastModified?: string;
 }
 
+// Job Description Schema
+export interface JobDescription {
+  title: string;
+  company: string;
+  type: string;
+  date: string;
+  description: string;
+  location: Location;
+  remote?: string;
+  salary?: string;
+  experience?: string;
+  responsibilities: string[];
+  qualifications: string[];
+  skills: JobSkill[];
+}
+
+export interface JobSkill {
+  name: string;
+  level: string;
+  keywords: string[];
+}
+
 // Sample resume template
 export const sampleResume: Resume = {
   basics: {

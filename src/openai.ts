@@ -1,7 +1,14 @@
 import OpenAI from "openai";
-import { Resume } from "./types.js";
+import { Resume, JobDescription, Skill as ResumeSkill } from "./types.js";
 import { CodebaseAnalysisResult } from "./codebase.js";
-import { resumeUpdateSchema, ResumeUpdate } from "./schemas.js";
+import { 
+  resumeUpdateSchema, 
+  jobResumeUpdateSchema, 
+  ResumeUpdate, 
+  JobResumeUpdate,
+  JobBasedResumeUpdate,
+  Skill
+} from "./schemas.js";
 import { z } from "zod";
 
 export class OpenAIService {
@@ -17,6 +24,115 @@ export class OpenAIService {
   /**
    * Generate a new project and skills based on codebase analysis
    */
+  /**
+   * Generate resume updates based on a job description
+   */
+  async generateJobBasedEnhancement(
+    resume: Resume,
+    jobDescription: JobDescription
+  ): Promise<JobResumeUpdate> {
+    try {
+      console.log("Preparing OpenAI API call for job-based resume enhancement...");
+
+      const response = await this.client.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a professional resume writer that helps tailor resumes to specific job descriptions. Focus on:\n" +
+              "1. Matching the resume's language and emphasis to the job requirements\n" +
+              "2. Identifying which existing skills and projects best align with the role\n" +
+              "3. Suggesting updates to make the resume more relevant\n" +
+              "4. Maintaining professionalism and accuracy while highlighting relevant experience"
+          },
+          {
+            role: "user",
+            content: `Please analyze this job description and resume to suggest targeted improvements:
+
+Job Description:
+${JSON.stringify(jobDescription, null, 2)}
+
+Current Resume:
+${JSON.stringify(resume, null, 2)}`
+          }
+        ],
+        functions: [
+          {
+            name: "enhance_resume_for_job",
+            description: "Generate resume updates to better match a job description",
+            parameters: {
+              type: "object",
+              properties: {
+                updatedSummary: {
+                  type: "string",
+                  description: "Updated professional summary that aligns with the job requirements"
+                },
+                updatedSkills: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      name: {
+                        type: "string",
+                        description: "Skill name"
+                      },
+                      level: {
+                        type: "string",
+                        description: "Skill level"
+                      },
+                      keywords: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "Related keywords"
+                      }
+                    }
+                  },
+                  description: "Updated skills section emphasizing relevant abilities"
+                },
+                skillsToHighlight: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "List of existing skills that are particularly relevant to this role"
+                },
+                suggestedProjects: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Names of existing projects that best demonstrate relevant experience"
+                },
+                changes: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "List of suggested changes and improvements"
+                }
+              },
+              required: ["updatedSkills", "skillsToHighlight", "suggestedProjects", "changes"]
+            }
+          }
+        ],
+        function_call: { name: "enhance_resume_for_job" }
+      });
+
+      const functionCall = response.choices[0]?.message?.function_call;
+      if (!functionCall?.arguments) {
+        throw new Error("No function call arguments received from OpenAI");
+      }
+
+      try {
+        const result = JSON.parse(functionCall.arguments);
+        const validated = jobResumeUpdateSchema.parse(result);
+        console.log("Successfully validated job-based resume update schema");
+        return validated;
+      } catch (parseError) {
+        console.log("Error parsing OpenAI response for job-based enhancement:", parseError);
+        throw parseError;
+      }
+    } catch (error) {
+      console.log("Error generating job-based resume enhancement:", error);
+      throw error;
+    }
+  }
+
   async generateResumeEnhancement(
     codebaseAnalysis: CodebaseAnalysisResult
   ): Promise<ResumeUpdate> {
@@ -185,30 +301,37 @@ Codebase Analysis:\n${JSON.stringify(codebaseAnalysis, null, 2)}`
   /**
    * Add only new project and skills to a resume without modifying any existing content
    */
-  async enhanceResume(resume: Resume, update: ResumeUpdate): Promise<Resume> {
+  async enhanceResume(resume: Resume, update: ResumeUpdate | JobBasedResumeUpdate): Promise<Resume> {
     const result = JSON.parse(JSON.stringify(resume)) as Resume;
 
     // Store the _gistId separately so we can add it back later
     const gistId = (result as any)._gistId;
 
-    // Add the new project if it doesn't already exist
-    const existingProjects = new Set(
-      (result.projects || []).map(project => project.name.toLowerCase())
-    );
+    // Add the new project if it exists and doesn't already exist in the resume
+    if ('newProject' in update && update.newProject) {
+      const existingProjects = new Set(
+        (result.projects || [])
+          .filter(project => project.name)
+          .map(project => project.name!.toLowerCase())
+      );
 
-    if (update.newProject && !existingProjects.has(update.newProject.name.toLowerCase())) {
-      result.projects = [...(result.projects || []), update.newProject];
+      if (update.newProject.name && !existingProjects.has(update.newProject.name.toLowerCase())) {
+        result.projects = [...(result.projects || []), update.newProject];
+      }
     }
 
     // Add new skills if they don't already exist
     const existingSkills = new Set(
-      (result.skills || []).map(skill =>
-        typeof skill === 'string' ? skill.toLowerCase() : skill.name.toLowerCase()
-      )
+      (result.skills || []).map((skill: string | ResumeSkill) => {
+        if (typeof skill === 'string') {
+          return skill.toLowerCase();
+        }
+        return skill.name?.toLowerCase() ?? '';
+      })
     );
 
-    const newSkills = update.newSkills.filter(skill =>
-      !existingSkills.has(skill.name.toLowerCase())
+    const newSkills = update.newSkills.filter(skill => 
+      skill.name && !existingSkills.has(skill.name.toLowerCase())
     );
 
     if (newSkills.length > 0) {
