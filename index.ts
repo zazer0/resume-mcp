@@ -151,15 +151,26 @@ async function analyzeCodebase(directory?: string) {
 
     console.log("Codebase analysis completed");
 
-    return {
-      message: "Codebase analysis completed successfully",
-      analysis,
-      summary: analysis.summary
+    return { // Wrap successful response in content array
+      content: [{
+        type: 'json',
+        json: {
+          message: "Codebase analysis completed successfully",
+          analysis,
+          summary: analysis.summary
+        }
+      }]
     };
   } catch (error) {
     console.error("Error analyzing codebase:", error);
-    // Return an error structure suitable for MCP
-    throw new McpError(ErrorCode.InternalError, `Error analyzing codebase: ${error instanceof Error ? error.message : String(error)}`);
+    // Return an error structure suitable for MCP, also wrapped in content array
+    return {
+      content: [{
+        type: 'text',
+        text: `Error analyzing codebase: ${error instanceof Error ? error.message : String(error)}`,
+        isError: true,
+      }],
+    };
   }
 }
 
@@ -169,13 +180,15 @@ async function checkResume() {
 
     // Fetch the user's resume content from GitHub gists
     const resumeContent = await githubService.getResumeGist();
+    console.log("Raw resumeContent from githubService.getResumeGist:", resumeContent);
 
     if (!resumeContent) {
-      return {
-        message: "No resume.json found in user's gists",
-        exists: false,
-        resumeUrl: null,
-        resume: null
+      return { // Wrap "no resume found" response in content array
+        content: [{
+          type: 'text',
+          text: "No resume.json found in user's gists",
+          isError: false, // Or true, depending on how "not found" should be treated
+        }],
       };
     }
 
@@ -185,21 +198,33 @@ async function checkResume() {
       // Remove the _gistId property if it exists (though getResumeGist shouldn't add it)
       const { _gistId, ...cleanResume } = resume;
 
-      return {
-        message: "Resume found",
-        exists: true,
-        resumeUrl: `https://registry.jsonresume.org/${GITHUB_USERNAME}`, // Assuming this is still desired
-        resume: cleanResume // Return the parsed resume object
+      return { // Wrap successful response in content array
+        content: [{
+          type: 'json',
+          json: cleanResume,
+        }],
       };
-    } catch (parseError) {
-       console.error("Error parsing resume.json content:", parseError);
-       throw new McpError(ErrorCode.InternalError, `Found resume.json, but failed to parse its content: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+    } catch (parseError: any) { // Explicitly type parseError
+      console.error("Error parsing resume.json content:", parseError);
+      return { // Wrap error in content array
+        content: [{
+          type: 'text',
+          text: `Found resume.json, but failed to parse its content: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
+          isError: true,
+        }],
+      };
     }
 
   } catch (error) {
     console.error("Error checking resume:", error);
     if (error instanceof McpError) throw error;
-    throw new McpError(ErrorCode.InternalError, `Error checking resume: ${error instanceof Error ? error.message : String(error)}`);
+    return { // Wrap error in content array
+      content: [{
+        type: 'text',
+        text: `Error checking resume: ${error instanceof Error ? error.message : String(error)}`,
+        isError: true,
+      }],
+    };
   }
 }
 
@@ -244,16 +269,27 @@ async function enhanceResume(job_json_path: string) {
     console.log(`Successfully created new gist: ${newGistUrl}`);
 
     // Step 5: Return the URL of the new gist
-    return {
-      message: "Resume successfully enhanced and saved to a new secret gist.",
-      gistUrl: newGistUrl
+    return { // Wrap successful response in content array
+      content: [{
+        type: 'json',
+        json: {
+          message: "Resume successfully enhanced and saved to a new secret gist.",
+          gistUrl: newGistUrl
+        }
+      }]
     };
 
   } catch (error) {
     console.error("Error in enhanceResume tool:", error);
     if (error instanceof McpError) throw error; // Re-throw known MCP errors
-    // Wrap other errors
-    throw new McpError(ErrorCode.InternalError, `Failed to enhance resume: ${error instanceof Error ? error.message : String(error)}`);
+    // Wrap other errors and return in content array
+    return {
+      content: [{
+        type: 'text',
+        text: `Failed to enhance resume: ${error instanceof Error ? error.message : String(error)}`,
+        isError: true,
+      }],
+    };
   }
 }
 
